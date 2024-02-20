@@ -2,12 +2,17 @@
  
 import os
 from dotenv import load_dotenv
+from influxdb_client import InfluxDBClient, Point
+from influxdb_client.client.write_api import ASYNCHRONOUS
 import paho.mqtt.client as mqtt
  
 load_dotenv() # take environment variables from .env.
  
 # InfluxDB config
-# TODO
+BUCKET = os.getenv('INFLUXDB_BUCKET')
+client = InfluxDBClient(url=os.getenv('INFLUXDB_URL'),
+token=os.getenv('INFLUXDB_TOKEN'), org=os.getenv('INFLUXDB_ORG'))
+write_api = client.write_api()
  
 # MQTT broker config
 MQTT_BROKER_URL = "mqtt.eclipseprojects.io"
@@ -26,9 +31,14 @@ mqttc.subscribe(MQTT_PUBLISH_TOPIC)
 def on_message(client, userdata, msg):
     """ The callback for when a PUBLISH message is received from the server."""
     print(msg.topic+" "+str(msg.payload))
+
+    ## InfluxDB logic
+    # We received bytes we need to convert into something usable
+    measurement = int(msg.payload)
  
-## InfluxDB logic
-# TODO
+    # InfluxDB logic
+    point = Point(MQTT_PUBLISH_TOPIC).tag("location", "Bangkok").field("temperature", measurement )
+    write_api.write(bucket=BUCKET, record=point)
  
 ## MQTT logic - Register callbacks and start MQTT client
 mqttc.on_connect = on_connect
